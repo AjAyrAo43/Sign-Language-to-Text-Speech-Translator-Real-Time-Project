@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Language Translator — Real-Time ASL to Text & Speech</title>
+    <meta name="description"
+        content="Real-time American Sign Language to Text and Speech translator using AI and MediaPipe hand tracking.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5.1675469404/pose.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675466862/camera_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js"
+        crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <!-- Ambient background -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span class="logo-icon">🤟</span>
+                <h1>SignLive<span class="accent">AI</span></h1>
+            </div>
+            <div class="header-status" id="headerStatus">
+                <span class="status-dot offline"></span>
+                <span class="status-text">Initializing...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-container">
+        <!-- Left Panel: Camera -->
+        <section class="panel camera-panel">
+            <div class="panel-header">
+                <h2>📹 Live Camera</h2>
+                <div class="panel-controls">
+                    <button id="btnToggleCamera" class="btn btn-primary" onclick="toggleCamera()">
+                        <span class="btn-icon">▶</span> Start Camera
+                    </button>
+                </div>
+            </div>
+            <div class="camera-wrapper">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="landmarkCanvas"></canvas>
+                <div class="camera-overlay" id="cameraOverlay">
+                    <div class="overlay-content">
+                        <span class="overlay-icon">📸</span>
+                        <p>Click "Start Camera" to begin</p>
+                    </div>
+                </div>
+                <div class="recording-indicator" id="recordingIndicator" style="display:none;">
+                    <span class="rec-dot"></span> Recording
+                </div>
+            </div>
+            <div class="camera-actions">
+                <button id="btnRecord" class="btn btn-accent" onclick="toggleRecording()" disabled>
+                    <span class="btn-icon">⏺</span> <span id="recordBtnText">Start Recording</span>
+                </button>
+                <button id="btnClear" class="btn btn-ghost" onclick="clearAll()">
+                    <span class="btn-icon">🗑️</span> Clear
+                </button>
+            </div>
+            <div class="frame-counter">
+                <span>Frames captured: <strong id="frameCount">0</strong></span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Results -->
+        <section class="panel results-panel">
+            <div class="panel-header">
+                <h2>🔮 Translation</h2>
+            </div>
+
+            <!-- Main Prediction Card -->
+            <div class="prediction-card" id="predictionCard">
+                <div class="prediction-idle" id="predictionIdle">
+                    <div class="idle-animation">
+                        <span>👋</span>
+                    </div>
+                    <p>Record a sign to see the translation</p>
+                </div>
+                <div class="prediction-result" id="predictionResult" style="display:none;">
+                    <div class="result-gloss" id="resultGloss">—</div>
+                    <div class="result-confidence">
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill" style="width:0%"></div>
+                        </div>
+                        <span class="confidence-text" id="confidenceText">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top 5 Predictions -->
+            <div class="top5-section" id="top5Section" style="display:none;">
+                <h3>Top Predictions</h3>
+                <div class="top5-list" id="top5List"></div>
+            </div>
+
+            <!-- Speech Controls -->
+            <div class="speech-section">
+                <h3>🔊 Text-to-Speech</h3>
+                <div class="speech-controls">
+                    <button id="btnSpeak" class="btn btn-accent" onclick="speakResult()" disabled>
+                        <span class="btn-icon">🗣️</span> Speak
+                    </button>
+                    <select id="voiceSelect" class="voice-select">
+                        <option value="">Default Voice</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Sentence Builder -->
+            <div class="sentence-section">
+                <h3>📝 Sentence Builder</h3>
+                <div class="sentence-display" id="sentenceDisplay">
+                    <span class="sentence-placeholder">Signs will appear here...</span>
+                </div>
+                <div class="sentence-actions">
+                    <button class="btn btn-ghost btn-sm" onclick="undoLastWord()">↩ Undo</button>
+                    <button class="btn btn-ghost btn-sm" onclick="speakSentence()">🔊 Speak All</button>
+                    <button class="btn btn-ghost btn-sm" onclick="clearSentence()">🗑️ Clear</button>
+                </div>
+            </div>
+
+            <!-- Glossary -->
+            <div class="glossary-section">
+                <h3>📖 Supported Signs <span class="badge" id="glossCount">100</span></h3>
+                <div class="glossary-search">
+                    <input type="text" id="glossSearch" placeholder="Search signs..." oninput="filterGlosses()">
+                </div>
+                <div class="glossary-grid" id="glossaryGrid"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Sign Language to Text/Speech Translator — Powered by SPOTER + MediaPipe</p>
+    </footer>
+
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
