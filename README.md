@@ -118,7 +118,7 @@ Open **http://localhost:8000** in your browser → Start Camera → Perform a si
 
 ### Training Configuration
 
-- **Epochs**: 350 | **Learning Rate**: 0.001 | **Optimizer**: Adam
+- **Epochs**: 100 | **Learning Rate**: 0.001 | **Optimizer**: Adam
 - **Hidden Dim**: 150 | **Attention Heads**: 10 | **Encoder/Decoder Layers**: 6+6
 - **Input**: 75 landmarks × 2 coordinates = 150-dim feature vector per frame
 
